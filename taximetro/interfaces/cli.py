@@ -1,7 +1,7 @@
 import logging
 import time
 
-from taximetro import historial
+from taximetro import config, historial
 from taximetro.carrera import Carrera
 from taximetro.tarifas import ESTADO_MOVIMIENTO, ESTADO_PARADO
 
@@ -21,8 +21,8 @@ def pedir_comando() -> str:
     return input("> ").strip().lower()
 
 
-def iniciar_carrera() -> Carrera:
-    carrera = Carrera(time.time())
+def iniciar_carrera(tarifas: dict) -> Carrera:
+    carrera = Carrera(time.time(), tarifas)
     logging.info("Carrera iniciada")
     print("Carrera iniciada.")
     return carrera
@@ -63,6 +63,12 @@ def mostrar_historial() -> None:
 
 def ejecutar() -> None:
     logging.info("Programa iniciado")
+    try:
+        tarifas = config.cargar_tarifas()
+    except (OSError, ValueError, KeyError) as error:
+        logging.error("No se pudieron cargar las tarifas: %s", error)
+        print("No se pudieron cargar las tarifas. Revisa config/tarifas.json.")
+        return
     mostrar_instrucciones()
 
     carrera = None
@@ -72,7 +78,7 @@ def ejecutar() -> None:
 
         if comando == "i":
             if carrera is None:
-                carrera = iniciar_carrera()
+                carrera = iniciar_carrera(tarifas)
             else:
                 print("Ya hay una carrera en curso.")
 
