@@ -6,3 +6,4 @@ venv/
 CLAUDE.md
 .claude/
 data/
+logs/
