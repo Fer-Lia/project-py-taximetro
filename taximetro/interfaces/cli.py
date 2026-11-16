@@ -1,3 +1,4 @@
+import logging
 import time
 
 from taximetro import historial
@@ -22,24 +23,37 @@ def pedir_comando() -> str:
 
 def iniciar_carrera() -> Carrera:
     carrera = Carrera(time.time())
+    logging.info("Carrera iniciada")
     print("Carrera iniciada.")
     return carrera
 
 
 def cambiar_estado(carrera: Carrera, estado: str) -> None:
     carrera.cambiar_estado(estado, time.time())
+    logging.info("Cambio de estado: %s", estado)
     print("Estado: " + estado)
 
 
 def finalizar_carrera(carrera: Carrera) -> None:
     ahora = time.time()
+    duracion = ahora - carrera.hora_inicio
     total = carrera.finalizar(ahora)
-    historial.guardar_carrera(carrera.hora_inicio, ahora - carrera.hora_inicio, total)
     print(f"Total a cobrar: {total:.2f} €")
+    logging.info("Carrera finalizada: %.0f s, %.2f EUR", duracion, total)
+    try:
+        historial.guardar_carrera(carrera.hora_inicio, duracion, total)
+    except OSError as error:
+        logging.error("No se pudo guardar la carrera: %s", error)
+        print("Aviso: no se pudo guardar la carrera en el historial.")
 
 
 def mostrar_historial() -> None:
-    carreras = historial.leer_carreras_de_hoy()
+    try:
+        carreras = historial.leer_carreras_de_hoy()
+    except OSError as error:
+        logging.error("No se pudo leer el historial: %s", error)
+        print("No se pudo leer el historial.")
+        return
     if len(carreras) == 0:
         print("Hoy no hay carreras.")
     else:
@@ -48,6 +62,7 @@ def mostrar_historial() -> None:
 
 
 def ejecutar() -> None:
+    logging.info("Programa iniciado")
     mostrar_instrucciones()
 
     carrera = None
@@ -84,6 +99,7 @@ def ejecutar() -> None:
             mostrar_historial()
 
         elif comando == "s":
+            logging.info("Programa cerrado")
             print("Hasta luego.")
             break
 
