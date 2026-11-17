@@ -84,7 +84,7 @@ def finalizar_carrera(carrera: Carrera) -> None:
     logging.info("Carrera finalizada: %.0f s, %.2f EUR", duracion, total)
     try:
         historial.guardar_carrera(carrera.hora_inicio, duracion, total)
-    except OSError as error:
+    except historial.ErrorHistorial as error:
         logging.error("No se pudo guardar la carrera: %s", error)
         print("Aviso: no se pudo guardar la carrera en el historial.")
 
@@ -92,7 +92,7 @@ def finalizar_carrera(carrera: Carrera) -> None:
 def mostrar_historial() -> None:
     try:
         carreras = historial.leer_carreras_de_hoy()
-    except OSError as error:
+    except historial.ErrorHistorial as error:
         logging.error("No se pudo leer el historial: %s", error)
         print("No se pudo leer el historial.")
         return
@@ -100,7 +100,7 @@ def mostrar_historial() -> None:
         print("Hoy no hay carreras.")
     else:
         for fecha, duracion, importe in carreras:
-            print(f"{fecha} | {duracion} s | {importe} €")
+            print(f"{fecha} | {duracion} s | {importe:.2f} €")
 
 
 def ejecutar() -> None:

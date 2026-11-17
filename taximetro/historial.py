@@ -1,27 +1,55 @@
 import os
+import sqlite3
+from contextlib import closing
 from datetime import datetime
 
 CARPETA_DATOS = "data"
-ARCHIVO_HISTORIAL = "data/historial.txt"
+ARCHIVO_BD = "data/taximetro.db"
 FORMATO_FECHA = "%Y-%m-%d %H:%M:%S"
 FORMATO_DIA = "%Y-%m-%d"
 
+CREAR_TABLA = """
+CREATE TABLE IF NOT EXISTS carreras (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    inicio TEXT NOT NULL,
+    duracion INTEGER NOT NULL CHECK (duracion >= 0),
+    importe REAL NOT NULL CHECK (importe >= 0)
+)
+"""
+
+
+class ErrorHistorial(Exception):
+    pass
+
+
+def conectar() -> sqlite3.Connection:
+    os.makedirs(CARPETA_DATOS, exist_ok=True)
+    conexion = sqlite3.connect(ARCHIVO_BD)
+    conexion.execute(CREAR_TABLA)
+    return conexion
+
 
 def guardar_carrera(hora_inicio: float, duracion: float, importe: float) -> None:
-    os.makedirs(CARPETA_DATOS, exist_ok=True)
-    fecha = datetime.fromtimestamp(hora_inicio).strftime(FORMATO_FECHA)
-    with open(ARCHIVO_HISTORIAL, "a", encoding="utf-8") as archivo:
-        archivo.write(f"{fecha};{duracion:.0f};{importe:.2f}\n")
+    inicio = datetime.fromtimestamp(hora_inicio).strftime(FORMATO_FECHA)
+    try:
+        with closing(conectar()) as conexion:
+            with conexion:
+                conexion.execute(
+                    "INSERT INTO carreras (inicio, duracion, importe) VALUES (?, ?, ?)",
+                    (inicio, round(duracion), importe),
+                )
+    except (OSError, sqlite3.Error) as error:
+        raise ErrorHistorial(error) from error
 
 
-def leer_carreras_de_hoy() -> list[list[str]]:
-    carreras = []
-    if not os.path.exists(ARCHIVO_HISTORIAL):
-        return carreras
+def leer_carreras_de_hoy() -> list[tuple[str, int, float]]:
     hoy = datetime.now().strftime(FORMATO_DIA)
-    with open(ARCHIVO_HISTORIAL, encoding="utf-8") as archivo:
-        for linea in archivo:
-            datos = linea.strip().split(";")
-            if datos[0].startswith(hoy):
-                carreras.append(datos)
-    return carreras
+    try:
+        with closing(conectar()) as conexion:
+            return conexion.execute(
+                "SELECT inicio, duracion, importe FROM carreras "
+                "WHERE date(inicio) = ? ORDER BY inicio",
+                (hoy,),
+            ).fetchall()
+    except (OSError, sqlite3.Error) as error:
+        raise ErrorHistorial(error) from error
