@@ -1,5 +1,6 @@
 import os
 import tempfile
+import time
 import unittest
 from unittest.mock import patch
 
@@ -28,8 +29,10 @@ class TestApi(unittest.TestCase):
             self.addCleanup(parche.stop)
         autenticacion.guardar_contrasena(CONTRASENA)
         app.state.carrera = None
-        self.cliente = TestClient(app)
-        self.cliente.auth = ("taxista", CONTRASENA)
+        app.state.sesiones = {}
+        self.anonimo = TestClient(app)
+        self.token = self.anonimo.post("/login", json={"contrasena": CONTRASENA}).json()["token"]
+        self.cliente = TestClient(app, headers={"Authorization": "Bearer " + self.token})
 
     def test_iniciar_una_carrera(self) -> None:
         respuesta = self.cliente.post("/carrera")
@@ -60,16 +63,43 @@ class TestApi(unittest.TestCase):
         self.assertTrue(respuesta.json()["guardada"])
         self.assertEqual(len(self.cliente.get("/historial").json()), 1)
 
-    def test_sin_contrasena_da_401(self) -> None:
-        self.assertEqual(TestClient(app).get("/historial").status_code, 401)
+    def test_login_con_la_contrasena_correcta_devuelve_un_token(self) -> None:
+        respuesta = self.anonimo.post("/login", json={"contrasena": CONTRASENA})
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertTrue(respuesta.json()["token"])
 
-    def test_una_contrasena_incorrecta_da_401(self) -> None:
-        respuesta = self.cliente.get("/historial", auth=("taxista", "incorrecta"))
+    def test_login_con_una_contrasena_incorrecta_da_401(self) -> None:
+        respuesta = self.anonimo.post("/login", json={"contrasena": "incorrecta"})
         self.assertEqual(respuesta.status_code, 401)
 
-    def test_sin_contrasena_creada_da_503(self) -> None:
+    def test_login_sin_contrasena_creada_da_503(self) -> None:
         os.remove(self.credenciales)
-        self.assertEqual(self.cliente.get("/historial").status_code, 503)
+        respuesta = self.anonimo.post("/login", json={"contrasena": CONTRASENA})
+        self.assertEqual(respuesta.status_code, 503)
+
+    def test_sin_token_no_se_puede_consultar_el_historial(self) -> None:
+        self.assertIn(self.anonimo.get("/historial").status_code, (401, 403))
+
+    def test_un_token_falso_da_401(self) -> None:
+        respuesta = self.anonimo.get("/historial", headers={"Authorization": "Bearer falso"})
+        self.assertEqual(respuesta.status_code, 401)
+
+    def test_cerrar_sesion_invalida_el_token(self) -> None:
+        self.assertEqual(self.cliente.post("/logout").status_code, 200)
+        self.assertEqual(self.cliente.get("/historial").status_code, 401)
+
+    def test_una_sesion_caducada_da_401(self) -> None:
+        app.state.sesiones[self.token] = time.time() - 1
+        self.assertEqual(self.cliente.get("/historial").status_code, 401)
+
+    def test_el_panel_web_se_sirve_sin_sesion(self) -> None:
+        respuesta = self.anonimo.get("/panel/")
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertIn("Taxímetro Digital", respuesta.text)
+
+    def test_la_raiz_redirige_al_panel(self) -> None:
+        respuesta = self.anonimo.get("/", follow_redirects=False)
+        self.assertEqual(respuesta.headers["location"], "/panel/")
 
 
 if __name__ == "__main__":
