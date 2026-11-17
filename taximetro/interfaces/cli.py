@@ -1,9 +1,12 @@
+import getpass
 import logging
 import time
 
-from taximetro import config, historial
+from taximetro import autenticacion, config, historial
 from taximetro.carrera import Carrera
 from taximetro.tarifas import ESTADO_MOVIMIENTO, ESTADO_PARADO
+
+INTENTOS_MAXIMOS = 3
 
 
 def mostrar_instrucciones() -> None:
@@ -19,6 +22,45 @@ def mostrar_instrucciones() -> None:
 
 def pedir_comando() -> str:
     return input("> ").strip().lower()
+
+
+def pedir_contrasena(mensaje: str) -> str:
+    return getpass.getpass(mensaje)
+
+
+def crear_contrasena() -> bool:
+    print("Primera vez: crea la contraseña de acceso.")
+    contrasena = pedir_contrasena("Nueva contraseña: ")
+    if contrasena == "":
+        print("La contraseña no puede estar vacía.")
+        return False
+    if contrasena != pedir_contrasena("Repite la contraseña: "):
+        print("Las contraseñas no coinciden.")
+        return False
+    autenticacion.guardar_contrasena(contrasena)
+    logging.info("Contraseña creada")
+    return True
+
+
+def iniciar_sesion() -> bool:
+    for _ in range(INTENTOS_MAXIMOS):
+        if autenticacion.verificar_contrasena(pedir_contrasena("Contraseña: ")):
+            logging.info("Acceso concedido")
+            return True
+        print("Contraseña incorrecta.")
+    logging.error("Acceso denegado tras %s intentos", INTENTOS_MAXIMOS)
+    return False
+
+
+def acceder() -> bool:
+    try:
+        if autenticacion.existe_contrasena():
+            return iniciar_sesion()
+        return crear_contrasena()
+    except (OSError, ValueError, KeyError) as error:
+        logging.error("Error de autenticación: %s", error)
+        print("No se pudo comprobar la contraseña.")
+        return False
 
 
 def iniciar_carrera(tarifas: dict) -> Carrera:
@@ -63,6 +105,9 @@ def mostrar_historial() -> None:
 
 def ejecutar() -> None:
     logging.info("Programa iniciado")
+    if not acceder():
+        return
+
     try:
         tarifas = config.cargar_tarifas()
     except (OSError, ValueError, KeyError) as error:
