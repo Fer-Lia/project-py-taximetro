@@ -109,7 +109,7 @@ class Aplicacion:
         logging.info("Carrera finalizada: %.0f s, %.2f EUR", duracion, total)
         try:
             historial.guardar_carrera(self.carrera.hora_inicio, duracion, total)
-        except OSError as error:
+        except historial.ErrorHistorial as error:
             logging.error("No se pudo guardar la carrera: %s", error)
             messagebox.showwarning("Aviso", "No se pudo guardar la carrera en el historial.")
         self.carrera = None
