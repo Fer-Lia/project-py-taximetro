@@ -36,7 +36,7 @@ def guardar_carrera(hora_inicio: float, duracion: float, importe: float) -> None
             with conexion:
                 conexion.execute(
                     "INSERT INTO carreras (inicio, duracion, importe) VALUES (?, ?, ?)",
-                    (inicio, round(duracion), importe),
+                    (inicio, round(duracion), round(importe, 2)),
                 )
     except (OSError, sqlite3.Error) as error:
         raise ErrorHistorial(error) from error
@@ -50,6 +50,16 @@ def leer_carreras_de_hoy() -> list[tuple[str, int, float]]:
                 "SELECT inicio, duracion, importe FROM carreras "
                 "WHERE date(inicio) = ? ORDER BY inicio",
                 (hoy,),
+            ).fetchall()
+    except (OSError, sqlite3.Error) as error:
+        raise ErrorHistorial(error) from error
+
+
+def leer_historial() -> list[tuple[str, int, float]]:
+    try:
+        with closing(conectar()) as conexion:
+            return conexion.execute(
+                "SELECT inicio, duracion, importe FROM carreras ORDER BY inicio DESC"
             ).fetchall()
     except (OSError, sqlite3.Error) as error:
         raise ErrorHistorial(error) from error

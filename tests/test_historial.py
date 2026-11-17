@@ -29,6 +29,10 @@ class TestHistorial(unittest.TestCase):
         self.assertEqual(carreras[0][1], 12)
         self.assertAlmostEqual(carreras[0][2], 3.45)
 
+    def test_el_importe_se_guarda_con_dos_decimales(self) -> None:
+        historial.guardar_carrera(time.time(), 10, 2.056440119743347)
+        self.assertEqual(historial.leer_carreras_de_hoy()[0][2], 2.06)
+
     def test_una_carrera_de_otro_dia_no_aparece(self) -> None:
         hace_dos_dias = time.time() - 2 * 24 * 3600
         historial.guardar_carrera(hace_dos_dias, 10, 1.00)
@@ -37,6 +41,13 @@ class TestHistorial(unittest.TestCase):
     def test_un_importe_negativo_se_rechaza(self) -> None:
         with self.assertRaises(historial.ErrorHistorial):
             historial.guardar_carrera(time.time(), 10, -1.0)
+
+    def test_leer_historial_devuelve_primero_la_carrera_mas_reciente(self) -> None:
+        ahora = time.time()
+        historial.guardar_carrera(ahora - 2 * 24 * 3600, 10, 1.00)
+        historial.guardar_carrera(ahora, 20, 2.00)
+        carreras = historial.leer_historial()
+        self.assertEqual([carrera[1] for carrera in carreras], [20, 10])
 
 
 if __name__ == "__main__":
