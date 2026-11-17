@@ -3,10 +3,11 @@ import time
 from contextlib import asynccontextmanager
 from typing import Literal
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel
 
-from taximetro import config, historial, registro
+from taximetro import autenticacion, config, historial, registro
 from taximetro.carrera import Carrera
 
 
@@ -17,7 +18,36 @@ async def ciclo_de_vida(app: FastAPI):
     yield
 
 
-app = FastAPI(title="Taxímetro Digital", lifespan=ciclo_de_vida)
+seguridad = HTTPBasic()
+
+
+def exigir_contrasena(credenciales: HTTPBasicCredentials = Depends(seguridad)) -> None:
+    try:
+        if not autenticacion.existe_contrasena():
+            raise HTTPException(
+                status_code=503,
+                detail="No hay contraseña creada. Créala con: python main.py --terminal",
+            )
+        correcta = autenticacion.verificar_contrasena(credenciales.password)
+    except (OSError, ValueError, KeyError) as error:
+        logging.error("Error de autenticación: %s", error)
+        raise HTTPException(
+            status_code=500, detail="No se pudo comprobar la contraseña."
+        ) from error
+    if not correcta:
+        logging.error("Acceso denegado a la API")
+        raise HTTPException(
+            status_code=401,
+            detail="Contraseña incorrecta.",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+
+
+app = FastAPI(
+    title="Taxímetro Digital",
+    lifespan=ciclo_de_vida,
+    dependencies=[Depends(exigir_contrasena)],
+)
 app.state.carrera = None
 
 
