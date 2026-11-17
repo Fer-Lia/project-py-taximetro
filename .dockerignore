@@ -1,0 +1,14 @@
+.git
+.github
+.claude
+.venv
+venv
+.env
+__pycache__
+*.pyc
+data
+logs
+tests
+assets
+CLAUDE.md
+README.md
