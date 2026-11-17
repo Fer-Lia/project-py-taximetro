@@ -9,9 +9,12 @@ class Carrera:
         self.hora_ultimo_cambio = hora_inicio
         self.importe = 0.0
 
-    def cerrar_tramo(self, ahora: float) -> None:
+    def importe_actual(self, ahora: float) -> float:
         segundos = ahora - self.hora_ultimo_cambio
-        self.importe += calcular_tramo(self.estado, segundos, self.tarifas)
+        return self.importe + calcular_tramo(self.estado, segundos, self.tarifas)
+
+    def cerrar_tramo(self, ahora: float) -> None:
+        self.importe = self.importe_actual(ahora)
         self.hora_ultimo_cambio = ahora
 
     def cambiar_estado(self, nuevo_estado: str, ahora: float) -> None:
