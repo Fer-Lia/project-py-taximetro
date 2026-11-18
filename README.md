@@ -128,6 +128,62 @@ El historial migra de fichero plano a base de datos relacional. La lógica de ne
 
 ---
 
+## 🚀 Cómo ejecutar el proyecto
+
+**Requisitos:** Python 3.13 y, para el despliegue con contenedores, Docker Desktop.
+
+**Instalación de dependencias:**
+
+```
+python -m pip install -r requirements.txt
+```
+
+**Primer uso:** la contraseña se crea la primera vez que se abre el programa en terminal:
+
+```
+python main.py --terminal
+```
+
+**Formas de ejecutarlo:**
+
+| Comando | Qué abre |
+|---|---|
+| `python main.py` | Interfaz gráfica (tkinter) |
+| `python main.py --terminal` | Interfaz de terminal |
+| `python main.py --api` | API REST y panel web en `http://localhost:8000/panel/` |
+| `docker compose up --build` | La API y el panel web en un contenedor, con los datos en un volumen |
+
+La documentación interactiva de la API está en `http://localhost:8000/docs`.
+
+**Tests:**
+
+```
+python -m unittest -v
+```
+
+**Tarifas:** se editan en `config/tarifas.json` (euros por segundo en `parado` y en `movimiento`).
+
+---
+
+## 🧭 Decisiones técnicas
+
+- **Arquitectura por capas:** `carrera.py` y `tarifas.py` contienen la lógica y no usan `print` ni `input`. Las interfaces (`cli.py`, `gui.py`, `api.py`) se limitan a pedir datos y mostrar resultados, así que la misma lógica sirve para las tres.
+- **SQLite para el historial:** viene incluida en Python, no necesita servidor y ofrece integridad con restricciones `CHECK` y transacciones.
+- **Contraseña con PBKDF2-SHA256:** se guarda solo el hash y una sal aleatoria, nunca la contraseña. La comparación usa `hmac.compare_digest`.
+- **FastAPI:** valida los datos de entrada y genera la documentación automática en `/docs`.
+- **Sesiones con token Bearer:** HTTP Basic no permite cerrar sesión de verdad, porque el navegador guarda las credenciales. Con token hay `/logout` y caducidad a las 8 horas.
+- **tkinter:** viene con Python y el importe en vivo se refresca con `after`, sin bloquear la ventana.
+- **Docker Compose con volumen:** `docker compose down` conserva los datos y `docker compose down -v` los borra.
+
+**Limitaciones conocidas:**
+
+- Las sesiones de la API se guardan en memoria y se pierden al reiniciar el servidor.
+- La API gestiona una única carrera en curso a la vez, compartida por todos los clientes.
+- Se sirve por HTTP sin cifrar. En producción haría falta HTTPS con un proxy delante.
+- La contraseña solo se puede crear desde la terminal, no desde la API ni el panel.
+
+---
+
 ## 🛠️ Restricciones Técnicas
 
 El lenguaje de desarrollo es **Python**. Más allá de eso, la elección de librerías, frameworks y herramientas queda en manos del equipo, que deberá justificar sus decisiones técnicas en la documentación del proyecto.
